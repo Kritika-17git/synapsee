@@ -1,0 +1,20 @@
+# Client
+client/node_modules/
+client/build/
+client/.env
+
+# Server
+server/node_modules/
+server/.env
+server/dist/
+
+# Logs
+*.log
+
+# System
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/

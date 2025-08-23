@@ -1,0 +1,15 @@
+# Face Recognition Service Dependencies
+opencv-python==4.8.1.78
+numpy==1.24.3
+websockets==11.0.3
+aiohttp==3.8.5
+aiohttp-cors==0.7.0
+
+# Additional dependencies for better compatibility
+asyncio-extras>=1.3.2
+Pillow>=9.5.0
+
+# Optional: For better performance (if needed)
+# opencv-contrib-python==4.8.1.78  # Uncomment for additional OpenCV features
+# dlib>=19.24.0  # Uncomment for more advanced face recognition
+# face-recognition>=1.3.0  # Uncomment for better face detection accuracy
