@@ -138,11 +138,13 @@ const Dashboard = () => {
   const handleCreateRoom = async () => {
     try {
       const response = await api.post('/rooms');
-      const roomId = response.data.data.roomId; // This should be unique
-      // Navigate to the new room (correct route)
-      navigate(`/call/${roomId}`);
+      if (response.data.success) {
+        const newRoomId = response.data.data.roomId;
+        //setCurrentRoomId(newRoomId);
+        navigate(`/call/${newRoomId}`);
+      }
     } catch (error) {
-      console.error('Failed to create room:', error);
+      console.error('Error creating room:', error);
     }
   };
 
@@ -183,7 +185,7 @@ const Dashboard = () => {
 
   const containerStyle = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #181a1aff 0%, #001017ff 100%)',
     padding: '20px',
     fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'
   };
@@ -220,7 +222,8 @@ const Dashboard = () => {
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+    // gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+    gridTemplateColumns: 'repeat(2, 1fr)', 
     gap: '30px'
   };
 
@@ -258,7 +261,7 @@ const Dashboard = () => {
     padding: '15px',
     borderRadius: '10px',
     border: 'none',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #1E90FF, #20C997)',
     color: 'white',
     fontSize: '16px',
     fontWeight: '600',
@@ -269,7 +272,7 @@ const Dashboard = () => {
 
   const secondaryButtonStyle = {
     ...buttonStyle,
-    background: 'linear-gradient(45deg, #26c6da, #00acc1)'
+    background: 'linear-gradient(45deg, #67e1a4ff, #204d2fff)'
   };
 
   const refreshButtonStyle = {
