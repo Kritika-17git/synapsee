@@ -20,16 +20,20 @@ const Controls = ({
     onToggleAudio();
   };
 
-  const controlsStyle = {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '16px',
-    padding: '20px',
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.2)'
-  };
+  
+const controlsStyle = {
+  display: 'flex',
+  justifyContent: 'center',
+  gap: '20px',
+  padding: '20px',
+  background: 'rgba(255, 255, 255, 0.15)',
+  backdropFilter: 'blur(12px)',
+  borderRadius: '20px',
+  border: '1px solid rgba(255, 255, 255, 0.2)',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+  marginTop: '20px'
+};
+
 
   const buttonBaseStyle = {
     width: '56px',
