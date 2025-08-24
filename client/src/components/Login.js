@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
@@ -43,9 +44,10 @@ const Login = () => {
     }
   };
 
+  // THEME: bluish-green gradient + glassmorphism
   const containerStyle = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0a192f, #0f2944, #00796b)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -54,20 +56,20 @@ const Login = () => {
   };
 
   const cardStyle = {
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(12px)',
     padding: '40px',
     borderRadius: '20px',
     border: '1px solid rgba(255, 255, 255, 0.2)',
     width: '100%',
     maxWidth: '400px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
   };
 
   const titleStyle = {
     textAlign: 'center',
-    color: 'white',
-    fontSize: '2.5rem',
+    color: '#4dd0e1',
+    fontSize: '2.2rem',
     fontWeight: 'bold',
     marginBottom: '10px'
   };
@@ -98,14 +100,15 @@ const Login = () => {
     padding: '15px',
     borderRadius: '10px',
     border: 'none',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #00c6ff, #0072ff)',
     color: 'white',
     fontSize: '16px',
     fontWeight: '600',
     cursor: loading ? 'not-allowed' : 'pointer',
     transition: 'all 0.3s ease',
     opacity: loading ? 0.7 : 1,
-    marginBottom: '20px'
+    marginBottom: '20px',
+    boxShadow: '0 4px 15px rgba(0, 114, 255, 0.3)'
   };
 
   const errorStyle = {
@@ -147,11 +150,7 @@ const Login = () => {
         <h1 style={titleStyle}>Welcome Back</h1>
         <p style={subtitleStyle}>Sign in to start video calling</p>
 
-        {error && (
-          <div style={errorStyle}>
-            {error}
-          </div>
-        )}
+        {error && <div style={errorStyle}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <input
@@ -183,22 +182,18 @@ const Login = () => {
             </button>
           </div>
 
-          <button
-            type="submit"
-            style={buttonStyle}
-            disabled={loading}
-          >
+          <button type="submit" style={buttonStyle} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div style={linkStyle}>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>
-            Don't have an account?{' '}
+          <p style={{ color: 'rgba(255, 255, 255, 0.85)', margin: 0 }}>
+            Don&apos;t have an account?{' '}
             <Link
               to="/signup"
               style={{
-                color: '#fff',
+                color: '#4dd0e1',
                 textDecoration: 'none',
                 fontWeight: '600'
               }}
