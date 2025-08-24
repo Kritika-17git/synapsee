@@ -74,18 +74,42 @@ const Dashboard = () => {
   };
 
   const fetchSessionReports = async () => {
-    try {
-      setLoadingReports(true);
-      const response = await api.get('/reports/sessions');
-      if (response.data.success) {
-        setSessionReports(response.data.data.reports);
-      }
-    } catch (error) {
-      console.error('Error fetching session reports:', error);
-    } finally {
-      setLoadingReports(false);
+  try {
+    setLoadingReports(true);
+    
+    // Use the correct endpoint that works
+    const response = await api.get('/reports/my-reports');
+    
+    // Handle the direct array response (not wrapped in success object)
+    if (Array.isArray(response.data)) {
+      // Format the data to match what the Dashboard expects
+      const formattedReports = response.data.map(report => ({
+        id: report._id,
+        sessionName: report.sessionName,
+        date: new Date(report.startTime).toLocaleDateString(),
+        time: new Date(report.startTime).toLocaleTimeString(),
+        duration: Math.round(report.duration / 60), // Convert to minutes
+        participants: report.participants.length,
+        attentionScore: report.overallAttentionScore,
+        status: report.isActive ? 'Active' : 'Completed'
+      }));
+      
+      setSessionReports(formattedReports);
+      console.log('Successfully fetched reports:', formattedReports);
+    } else {
+      console.error('Unexpected response format:', response.data);
+      setSessionReports([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching session reports:', error);
+    if (error.response?.status === 429) {
+      console.log('Rate limited - will retry on next interval');
+    }
+    setSessionReports([]);
+  } finally {
+    setLoadingReports(false);
+  }
+};
 
   // New function to fetch live attention grades for current room
   const fetchLiveAttentionGrades = async (roomId) => {
@@ -114,13 +138,11 @@ const Dashboard = () => {
   const handleCreateRoom = async () => {
     try {
       const response = await api.post('/rooms');
-      if (response.data.success) {
-        const newRoomId = response.data.data.roomId;
-        setCurrentRoomId(newRoomId);
-        navigate(`/call/${newRoomId}`);
-      }
+      const roomId = response.data.data.roomId; // This should be unique
+      // Navigate to the new room (correct route)
+      navigate(`/call/${roomId}`);
     } catch (error) {
-      console.error('Error creating room:', error);
+      console.error('Failed to create room:', error);
     }
   };
 

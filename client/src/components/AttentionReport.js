@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../services/api.js'; // Import the same API service used in Dashboard
 
 // Styles
 const cardStyle = {
@@ -56,22 +57,21 @@ const AttentionReports = () => {
     };
   };
 
-  // Function to fetch reports from API
+  // Function to fetch reports from API using the same service as Dashboard
   const fetchReports = async () => {
     try {
       setLoadingReports(true);
       setError(null);
       
-      const response = await fetch('http://localhost:5000/api/reports/my-reports');
+      // Use the same API service and endpoint as Dashboard
+      const response = await api.get('/reports/my-reports');
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch reports: ${response.status}`);
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid response format from server');
       }
       
-      const data = await response.json();
-      
       // Format the data for display
-      const formattedReports = data.map(report => ({
+      const formattedReports = response.data.map(report => ({
         id: report._id,
         sessionName: report.sessionName,
         date: new Date(report.startTime).toLocaleDateString(),
@@ -82,10 +82,11 @@ const AttentionReports = () => {
         status: report.isActive ? 'Active' : 'Completed'
       }));
       
+      console.log('Fetched reports:', formattedReports);
       setSessionReports(formattedReports);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      setError(error.message);
+      setError(error.message || 'Failed to fetch reports');
     } finally {
       setLoadingReports(false);
     }
@@ -97,9 +98,8 @@ const AttentionReports = () => {
   }, []);
 
   const handleViewReport = (reportId) => {
-    // Navigate to report detail view
-    console.log('View report:', reportId);
-    // You can implement navigation here
+    // Navigate to report detail view (same as Dashboard)
+    window.open(`/report/${reportId}`, '_blank');
   };
 
   const handleRetry = () => {
@@ -170,6 +170,18 @@ const AttentionReports = () => {
           No session reports available. Start a meeting to generate reports.
         </p>
       )}
+      
+      <div style={{ 
+        textAlign: 'center', 
+        fontSize: '12px', 
+        opacity: 0.7,
+        marginTop: '15px',
+        padding: '10px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '8px'
+      }}>
+        Click on any report to view detailed attention analytics for each student
+      </div>
     </div>
   );
 };

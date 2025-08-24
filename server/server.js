@@ -19,28 +19,125 @@ const server = createServer(app);
 // Import modules - these will be initialized after DB connection
 let connectDB, User, AttentionReport, authenticateSocket, authRoutes, userRoutes, reportRoutes;
 
-// Helper function to update attention reports
-async function updateAttentionReport(sessionId, user, faceData) {
-  try {
-    const now = new Date();
+// CORS configuration - moved to top and fixed
+const corsOptions = {
+  origin: function (origin, callback) {
+    console.log('CORS check for origin:', origin);
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
     
-    // Find or create session report
-    let report = await AttentionReport.findOne({
-      sessionId: sessionId,
-      isActive: true
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:3000$/,
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:3000$/,
+      /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}:3000$/
+    ];
+    
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      }
+      return allowed.test(origin);
     });
     
+    console.log('CORS allowed:', isAllowed);
+    callback(null, isAllowed); // Don't throw error, just return false
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With', 
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200 // For legacy browser support
+};
+
+// Apply CORS very early - before any other middleware
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
+
+// Add explicit preflight handling for problematic routes
+app.options('/api/*', cors(corsOptions));
+
+// Improved Helper function to update attention reports with debug and roomId
+// Replace your updateAttentionReport function with this version:
+async function updateAttentionReport(sessionId, user, faceData, roomId = null) {
+  try {
+    console.log('=== UPDATE ATTENTION REPORT DEBUG ===');
+    console.log('SessionId:', sessionId);
+    console.log('User:', user ? user.username : 'undefined');
+    console.log('RoomId:', roomId);
+    
+    const now = new Date();
+    
+    // IMPORTANT: Find session by EXACT sessionId match, not just any active session
+    let report = await AttentionReport.findOne({
+      sessionId: sessionId  // Remove isActive: true to find the exact session
+    });
+    
+    console.log('Existing report found:', !!report);
+    console.log('Report sessionId if found:', report ? report.sessionId : 'none');
+    
     if (!report) {
-      report = new AttentionReport({
-        sessionId: sessionId,
+      // Create new report with unique session identifier
+      const reportData = {
+        sessionId: sessionId, // This should be unique for each meeting
+        roomId: roomId || sessionId,
+        sessionName: `Meeting ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+        createdBy: user._id,
         startTime: now,
         isActive: true,
         participants: [{
           userId: user._id,
+          name: `${user.firstName} ${user.lastName}`,
           username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
           joinedAt: now
         }]
-      });
+      };
+      
+      console.log('Creating NEW report with sessionId:', sessionId);
+      report = new AttentionReport(reportData);
+    } else {
+      console.log('Using EXISTING report from:', report.startTime);
+      
+      // If this is an old session (more than 1 hour old), create a new one instead
+      const sessionAge = (now - new Date(report.startTime)) / (1000 * 60 * 60); // hours
+      if (sessionAge > 1) {
+        console.log('Session too old (', sessionAge, 'hours), creating new session');
+        
+        // End the old session
+        report.isActive = false;
+        report.endTime = new Date(report.updatedAt || report.startTime);
+        await report.save();
+        
+        // Create completely new session
+        const newReportData = {
+          sessionId: sessionId + '_' + Date.now(), // Make it unique
+          roomId: roomId || sessionId,
+          sessionName: `Meeting ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+          createdBy: user._id,
+          startTime: now,
+          isActive: true,
+          participants: [{
+            userId: user._id,
+            name: `${user.firstName} ${user.lastName}`,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            joinedAt: now
+          }]
+        };
+        
+        report = new AttentionReport(newReportData);
+        console.log('Created fresh session with ID:', report.sessionId);
+      }
     }
     
     // Add participant if not exists
@@ -49,33 +146,67 @@ async function updateAttentionReport(sessionId, user, faceData) {
     );
     
     if (!participantExists) {
+      console.log('Adding new participant:', user.username);
       report.participants.push({
         userId: user._id,
+        name: `${user.firstName} ${user.lastName}`,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         joinedAt: now
       });
     }
     
-    // Add attention data
+    // Update attention data if provided
     if (faceData) {
-      report.attentionData.push({
-        userId: user._id,
-        timestamp: now,
-        attentionScore: faceData.attention_score || 0,
-        faceDetected: faceData.face_detected || false,
-        eyeGaze: faceData.eye_gaze || 'unknown',
-        headPose: faceData.head_pose || { pitch: 0, yaw: 0, roll: 0 },
-        emotions: faceData.emotions || {}
-      });
+      console.log('Updating face data for user:', user.username);
+      const participant = report.participants.find(p => 
+        p.userId.toString() === user._id.toString()
+      );
+      
+      if (participant) {
+        participant.totalFrames = (participant.totalFrames || 0) + 1;
+        if (faceData.face_detected) {
+          participant.faceDetectedFrames = (participant.faceDetectedFrames || 0) + 1;
+        }
+        participant.attentionScore = faceData.attention_score || participant.attentionScore || 0;
+        
+        // Calculate attention grade
+        const score = participant.attentionScore;
+        if (score >= 90) {
+          participant.attentionGrade = { grade: 'A', label: 'Excellent', color: '#4CAF50' };
+        } else if (score >= 80) {
+          participant.attentionGrade = { grade: 'B', label: 'Good', color: '#8BC34A' };
+        } else if (score >= 70) {
+          participant.attentionGrade = { grade: 'C', label: 'Average', color: '#FFC107' };
+        } else if (score >= 60) {
+          participant.attentionGrade = { grade: 'D', label: 'Below Average', color: '#FF9800' };
+        } else if (score >= 50) {
+          participant.attentionGrade = { grade: 'E', label: 'Poor', color: '#FF5722' };
+        } else {
+          participant.attentionGrade = { grade: 'F', label: 'Very Poor', color: '#F44336' };
+        }
+      }
     }
     
-    await report.save();
-    return report;
+    // Calculate overall attention score
+    if (report.participants.length > 0) {
+      const totalScore = report.participants.reduce((sum, p) => sum + (p.attentionScore || 0), 0);
+      report.overallAttentionScore = Math.round(totalScore / report.participants.length);
+    }
+    
+    console.log('Saving report with sessionId:', report.sessionId);
+    const savedReport = await report.save();
+    console.log('Report saved successfully with ID:', savedReport._id);
+    console.log('=== END DEBUG ===');
+    
+    return savedReport;
   } catch (error) {
-    console.error('Error updating attention report:', error);
+    console.error('=== ERROR IN UPDATE ATTENTION REPORT ===');
+    console.error('Error details:', error);
+    throw error;
   }
 }
-
 // Python Face Recognition Service Management
 class FaceRecognitionService {
   constructor() {
@@ -347,56 +478,33 @@ async function initializeServer() {
     // 4. Setup basic middleware
     console.log('⚙️ Configuring middleware...');
     
-    // Security middleware
+    // Add logging middleware first
+    app.use(morgan('combined'));
+    
+    // Basic express middleware
+    app.use(express.json({ limit: '10mb' }));
+    app.use(express.urlencoded({ extended: true }));
+    
+    // Security middleware (after CORS)
     app.use(helmet({
       contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false
     }));
 
-    // Rate limiting
+    // Rate limiting (apply after CORS)
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 100,
+      max: process.env.NODE_ENV === 'production' ? 100 : 1000,
       message: {
         success: false,
         message: 'Too many requests from this IP, please try again later'
-      }
+      },
+      standardHeaders: true,
+      legacyHeaders: false
     });
 
     app.use('/api/', limiter);
-
-    // CORS configuration
-    const corsOptions = {
-      origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'http://127.0.0.1:3000',
-          /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:3000$/,
-          /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:3000$/,
-          /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}:3000$/
-        ];
-        
-        const isAllowed = allowedOrigins.some(allowed => {
-          if (typeof allowed === 'string') {
-            return allowed === origin;
-          }
-          return allowed.test(origin);
-        });
-        
-        if (isAllowed) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      methods: ["GET", "POST", "PUT", "DELETE"],
-      credentials: true
-    };
-
-    app.use(cors(corsOptions));
-    app.use(express.json({ limit: '10mb' }));
     
     console.log('✅ Middleware configured');
     
@@ -572,20 +680,40 @@ async function initializeServer() {
       });
 
       socket.on('face-recognition-data', async (faceData) => {
-        try {
-          const userRoom = Array.from(socket.rooms).find(room => room !== socket.id);
-          if (!userRoom) return;
+  try {
+    console.log('Received face recognition data from user:', user.username);
+    
+    const userRoom = Array.from(socket.rooms).find(room => room !== socket.id);
+    if (!userRoom) {
+      console.error('User not in any room');
+      return;
+    }
 
-          // Broadcast to room as before
-          socket.to(userRoom).emit('face-recognition-data', faceData);
+    // Broadcast to room as before
+    socket.to(userRoom).emit('face-recognition-data', {
+      userId: user._id,
+      username: user.username,
+      socketId: socket.id,
+      ...faceData
+    });
 
-          // Store/update in database
-          await updateAttentionReport(userRoom, socket.user, faceData);
-          
-        } catch (error) {
-          console.error('Error handling face recognition data:', error);
-        }
+    // Store/update in database with proper error handling
+    try {
+      const savedReport = await updateAttentionReport(userRoom, user, faceData, userRoom);
+      console.log('Successfully saved attention data for session:', userRoom);
+    } catch (dbError) {
+      console.error('Database save failed:', dbError.message);
+      // Optionally notify the client about the error
+      socket.emit('error', {
+        type: 'database_error',
+        message: 'Failed to save attention data'
       });
+    }
+    
+  } catch (error) {
+    console.error('Error handling face recognition data:', error);
+  }
+});
 
       // Handle session end
       socket.on('end-session', async () => {
@@ -594,12 +722,16 @@ async function initializeServer() {
           if (userRoom && rooms.has(userRoom)) {
             // Mark session as ended
             await AttentionReport.findOneAndUpdate(
-              { sessionId: userRoom },
+              { sessionId: userRoom,
+                isActive: true 
+               },
               { 
                 isActive: false,
-                endTime: new Date()
+                endTime: new Date(),
+                status: 'Completed'
               }
             );
+            console.log(`Session ${userRoom} ended successfully`);
           }
         } catch (error) {
           console.error('Error ending session:', error);
@@ -672,8 +804,25 @@ async function initializeServer() {
           });
           
           if (room.users.size === 0) {
-            rooms.delete(userRoom);
+      try {
+        await AttentionReport.findOneAndUpdate(
+          { 
+            sessionId: userRoom,
+            isActive: true 
+          },
+          { 
+            isActive: false,
+            endTime: new Date(),
+            status: 'Completed'
           }
+        );
+        console.log(`Auto-ended session ${userRoom} - no users remaining`);
+      } catch (error) {
+        console.error('Error auto-ending session:', error);
+      }
+      
+      rooms.delete(userRoom);
+    }
         }
         
         socket.broadcast.emit('user-offline', {
@@ -822,9 +971,9 @@ async function initializeServer() {
     });
 
     // Health check
+
     app.get('/api/health', async (req, res) => {
       const faceRecognitionHealth = await faceRecognitionService.checkHealth();
-      
       res.json({
         success: true,
         message: 'Server is running',
@@ -840,8 +989,44 @@ async function initializeServer() {
       });
     });
 
-    // Error handling
+    // === Session Management Endpoints ===
+    // End a session (mark as inactive)
+    app.post('/api/sessions/:sessionId/end', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const report = await AttentionReport.findOneAndUpdate(
+          { sessionId, isActive: true },
+          { isActive: false, endTime: new Date(), status: 'Completed' },
+          { new: true }
+        );
+        if (!report) {
+          return res.status(404).json({ success: false, message: 'Session not found or already ended' });
+        }
+        res.json({ success: true, message: 'Session ended', data: report });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to end session', error: error.message });
+      }
+    });
+
+    // Get all active sessions
+    app.get('/api/sessions/active', async (req, res) => {
+      try {
+        const activeSessions = await AttentionReport.find({ isActive: true });
+        res.json({ success: true, data: activeSessions });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch active sessions', error: error.message });
+      }
+    });
+
+    // CORS error handler
     app.use((err, req, res, next) => {
+      if (err.message && err.message.includes('CORS')) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'CORS error - request not allowed',
+          origin: req.headers.origin 
+        });
+      }
       console.error('Error:', err.stack);
       res.status(500).json({
         success: false,
