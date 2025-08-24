@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api.js'; // Import the same API service used in Dashboard
+<<<<<<< Updated upstream
 
 // Styles
 const cardStyle = {
@@ -17,6 +18,8 @@ const cardTitleStyle = {
 };
 import React, { useState, useEffect } from 'react';
 import api from '../services/api.js'; // Import the same API service used in Dashboard
+=======
+>>>>>>> Stashed changes
 
 // Styles
 const cardStyle = {
