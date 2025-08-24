@@ -44,26 +44,22 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!passwordMatch) {
-      return;
-    }
 
-    if (Object.values(formData).some(field => !field.trim())) {
-      return;
-    }
+    if (!passwordMatch) return;
+    if (Object.values(formData).some((field) => !field.trim())) return;
 
     const { confirmPassword, ...signupData } = formData;
     const result = await signup(signupData);
-    
+
     if (result.success) {
       navigate('/dashboard', { replace: true });
     }
   };
 
+  // THEME: Bluish-green gradient + glassmorphism (same as Login)
   const containerStyle = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0a192f, #0f2944, #00796b)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -72,22 +68,22 @@ const Signup = () => {
   };
 
   const cardStyle = {
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(12px)',
     padding: '40px',
     borderRadius: '20px',
     border: '1px solid rgba(255, 255, 255, 0.2)',
     width: '100%',
     maxWidth: '450px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
     maxHeight: '90vh',
     overflowY: 'auto'
   };
 
   const titleStyle = {
     textAlign: 'center',
-    color: 'white',
-    fontSize: '2.5rem',
+    color: '#4dd0e1',
+    fontSize: '2.2rem',
     fontWeight: 'bold',
     marginBottom: '10px'
   };
@@ -102,7 +98,7 @@ const Signup = () => {
   const inputStyle = {
     width: '100%',
     padding: '12px 16px',
-    borderRadius: '8px',
+    borderRadius: '10px',
     border: '1px solid rgba(255, 255, 255, 0.3)',
     background: 'rgba(255, 255, 255, 0.1)',
     color: 'white',
@@ -130,14 +126,15 @@ const Signup = () => {
     padding: '15px',
     borderRadius: '10px',
     border: 'none',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #00c6ff, #0072ff)',
     color: 'white',
     fontSize: '16px',
     fontWeight: '600',
     cursor: loading ? 'not-allowed' : 'pointer',
     transition: 'all 0.3s ease',
     opacity: loading ? 0.7 : 1,
-    marginBottom: '20px'
+    marginBottom: '20px',
+    boxShadow: '0 4px 15px rgba(0, 114, 255, 0.3)'
   };
 
   const errorStyle = {
@@ -158,7 +155,8 @@ const Signup = () => {
 
   const passwordContainerStyle = {
     position: 'relative',
-    flex: 1
+    flex: 1,
+    marginBottom: '15px'
   };
 
   const togglePasswordStyle = {
@@ -179,11 +177,7 @@ const Signup = () => {
         <h1 style={titleStyle}>Join Us</h1>
         <p style={subtitleStyle}>Create your account to get started</p>
 
-        {error && (
-          <div style={errorStyle}>
-            {error}
-          </div>
-        )}
+        {error && <div style={errorStyle}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div style={rowStyle}>
@@ -258,32 +252,30 @@ const Signup = () => {
           />
 
           {!passwordMatch && (
-            <p style={{
-              color: '#ff6b6b',
-              fontSize: '12px',
-              marginTop: '-10px',
-              marginBottom: '15px'
-            }}>
+            <p
+              style={{
+                color: '#ff6b6b',
+                fontSize: '12px',
+                marginTop: '-10px',
+                marginBottom: '15px'
+              }}
+            >
               Passwords do not match
             </p>
           )}
 
-          <button
-            type="submit"
-            style={buttonStyle}
-            disabled={loading || !passwordMatch}
-          >
+          <button type="submit" style={buttonStyle} disabled={loading || !passwordMatch}>
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
         <div style={linkStyle}>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.85)', margin: 0 }}>
             Already have an account?{' '}
             <Link
               to="/login"
               style={{
-                color: '#fff',
+                color: '#4dd0e1',
                 textDecoration: 'none',
                 fontWeight: '600'
               }}
